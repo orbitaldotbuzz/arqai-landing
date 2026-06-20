@@ -27,7 +27,7 @@ export default function Home() {
       scene.background = new THREE.Color(0x030507)
 
       const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500)
-      camera.position.set(8, 3, 8)
+      camera.position.set(0, 1.6, 0)
 
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current!,
@@ -43,11 +43,9 @@ export default function Home() {
       renderer.outputColorSpace = THREE.SRGBColorSpace
 
       // ─── Indoor Lighting ───
-      // Clean ambient for general visibility
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.8)
       scene.add(ambientLight)
 
-      // Soft directional sunlight through apartment windows
       const sunLight = new THREE.DirectionalLight(0xfff5e6, 2.0)
       sunLight.position.set(5, 8, 3)
       sunLight.castShadow = true
@@ -61,40 +59,81 @@ export default function Home() {
       sunLight.shadow.camera.bottom = -15
       sunLight.shadow.bias = -0.0002
       scene.add(sunLight)
+      scene.add(sunLight.target)
 
-      // Soft fill from opposite side
       const fillLight = new THREE.DirectionalLight(0xddeeff, 0.4)
       fillLight.position.set(-4, 3, -2)
       scene.add(fillLight)
 
-      // Hemisphere light for natural sky/ground bounce
       const hemiLight = new THREE.HemisphereLight(0xcce0ff, 0x222222, 0.3)
       scene.add(hemiLight)
 
-      // Subtle accent rim light
       const rimLight = new THREE.PointLight(0x00f5ff, 0.3, 30)
       rimLight.position.set(0, 5, 0)
       scene.add(rimLight)
 
-      // ─── Camera Data ───
-      // Defaults for before model loads; will be recalculated after GLB loads
-      const cameraData: Record<string, { pos: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }> = {
-        section1: { pos: { x: 8, y: 3, z: 8 }, target: { x: 0, y: 2, z: 0 } },
-        section2: { pos: { x: 3, y: 2.2, z: 2 }, target: { x: -1, y: 1.8, z: -2 } },
-        section3: { pos: { x: -2, y: 2.5, z: 1 }, target: { x: -4, y: 2.2, z: -1 } },
-        section4: { pos: { x: 6, y: 6, z: 6 }, target: { x: 0, y: 2, z: 0 } },
+      // ─── Eye-level height ───
+      // Human eye level is ~1.6m. This is CONSTANT for sections 1–3.
+      // Only section 4 is allowed to go above this (exterior pull-back).
+      const EYE_HEIGHT = 1.6
+      const EYE_TARGET_Y = 1.4 // Slightly below eye for natural look-ahead
+
+      // ─── Waypoint Camera System ───
+      // Instead of diagonal lines, each transition goes through intermediate
+      // waypoints so the camera follows corridors instead of clipping walls.
+      //
+      // Each waypoint: { pos: {x,y,z}, target: {x,y,z} }
+      // The camera will step through these in sequence via GSAP timeline.
+
+      // These will be populated by updateCameraForModel() after GLB loads.
+      // Default values are placeholder only.
+      const waypoints = {
+        // Section 1 (Hero): Entrance looking into living room
+        s1: {
+          pos: { x: 0, y: EYE_HEIGHT, z: 0 },
+          target: { x: 0, y: EYE_TARGET_Y, z: 0 },
+        },
+        // Section 1→2 waypoint A: Step forward into living room center
+        s1_midA: {
+          pos: { x: 0, y: EYE_HEIGHT, z: 0 },
+          target: { x: 0, y: EYE_TARGET_Y, z: 0 },
+        },
+        // Section 2 (Workflow): In front of lounge/sitting setup
+        s2: {
+          pos: { x: 0, y: EYE_HEIGHT, z: 0 },
+          target: { x: 0, y: EYE_TARGET_Y, z: 0 },
+        },
+        // Section 2→3 waypoint B: Side-step along corridor (not diagonal)
+        s2_midB: {
+          pos: { x: 0, y: EYE_HEIGHT, z: 0 },
+          target: { x: 0, y: EYE_TARGET_Y, z: 0 },
+        },
+        // Section 3 (Solution): Close to kitchen counter / side desk detail
+        s3: {
+          pos: { x: 0, y: EYE_HEIGHT, z: 0 },
+          target: { x: 0, y: EYE_TARGET_Y, z: 0 },
+        },
+        // Section 3→4 waypoint C: Approach window/balcony before exiting
+        s3_midC: {
+          pos: { x: 0, y: EYE_HEIGHT, z: 0 },
+          target: { x: 0, y: EYE_TARGET_Y, z: 0 },
+        },
+        // Section 4 (Pricing): Outside through window, elevated overview
+        s4: {
+          pos: { x: 0, y: 5, z: 0 },
+          target: { x: 0, y: 1.5, z: 0 },
+        },
       }
 
-      const currentTarget = new THREE.Vector3(0, 2, 0)
+      const currentTarget = new THREE.Vector3(0, EYE_TARGET_Y, 0)
 
       // ─── Dynamic camera calculation based on loaded model ───
       const updateCameraForModel = (model: THREE.Group) => {
         const box = new THREE.Box3().setFromObject(model)
-        const center = box.getCenter(new THREE.Vector3())
         const size = box.getSize(new THREE.Vector3())
-
-        // Scale model to fit ~15 unit scene (good for interior walkthrough)
         const maxDim = Math.max(size.x, size.y, size.z)
+
+        // Scale to ~15 units for interior walkthrough
         const scale = 15 / maxDim
         model.scale.setScalar(scale)
 
@@ -113,79 +152,64 @@ export default function Home() {
         const finalCenter = finalBox.getCenter(new THREE.Vector3())
 
         const cx = finalCenter.x
-        const cy = finalCenter.y
         const cz = finalCenter.z
         const sx = scaledSize.x
-        const sy = scaledSize.y
         const sz = scaledSize.z
 
-        // Section 1 (Hero): Wide-angle interior perspective - main living area
-        cameraData.section1.pos = {
-          x: cx + sx * 0.4,
-          y: cy + sy * 0.15,
-          z: cz + sz * 0.45
-        }
-        cameraData.section1.target = {
-          x: cx - sx * 0.1,
-          y: cy - sy * 0.05,
-          z: cz - sz * 0.1
-        }
+        // Floor Y is at 0 after positioning, so eye level is EYE_HEIGHT
+        // Model center Z is the "depth center" of the apartment
 
-        // Section 2 (Workflow): Moving forward into lounge/sitting area
-        cameraData.section2.pos = {
-          x: cx + sx * 0.05,
-          y: cy - sy * 0.05,
-          z: cz + sz * 0.15
-        }
-        cameraData.section2.target = {
-          x: cx - sx * 0.2,
-          y: cy - sy * 0.1,
-          z: cz - sz * 0.2
-        }
+        // ── Section 1 (Hero): Main entrance, looking into living room ──
+        // Camera at back edge (entrance side), looking toward center
+        waypoints.s1.pos = { x: cx, y: EYE_HEIGHT, z: cz + sz * 0.4 }
+        waypoints.s1.target = { x: cx, y: EYE_TARGET_Y, z: cz - sz * 0.05 }
 
-        // Section 3 (Solution): Tight macro pan along wall/window surface
-        cameraData.section3.pos = {
-          x: cx - sx * 0.25,
-          y: cy + sy * 0.05,
-          z: cz - sz * 0.05
-        }
-        cameraData.section3.target = {
-          x: cx - sx * 0.35,
-          y: cy - sy * 0.05,
-          z: cz - sz * 0.15
-        }
+        // ── Waypoint A: Walk straight forward into living room center ──
+        // Keep same X (no side movement), move along Z axis
+        waypoints.s1_midA.pos = { x: cx, y: EYE_HEIGHT, z: cz + sz * 0.15 }
+        waypoints.s1_midA.target = { x: cx - sx * 0.05, y: EYE_TARGET_Y, z: cz - sz * 0.1 }
 
-        // Section 4 (Pricing): Elevated wide shot from corner
-        cameraData.section4.pos = {
-          x: cx + sx * 0.35,
-          y: cy + sy * 0.6,
-          z: cz + sz * 0.35
-        }
-        cameraData.section4.target = {
-          x: cx,
-          y: cy - sy * 0.1,
-          z: cz
-        }
+        // ── Section 2 (Workflow): In front of lounge/sitting area ──
+        // Deeper into the room, still on center line
+        waypoints.s2.pos = { x: cx - sx * 0.05, y: EYE_HEIGHT, z: cz - sz * 0.05 }
+        waypoints.s2.target = { x: cx - sx * 0.15, y: EYE_TARGET_Y, z: cz - sz * 0.2 }
+
+        // ── Waypoint B: Side-step toward kitchen/desk area (X axis first, then Z) ──
+        // Move laterally along X, NOT diagonally
+        waypoints.s2_midB.pos = { x: cx - sx * 0.2, y: EYE_HEIGHT, z: cz - sz * 0.05 }
+        waypoints.s2_midB.target = { x: cx - sx * 0.3, y: EYE_TARGET_Y, z: cz - sz * 0.1 }
+
+        // ── Section 3 (Solution): Close to kitchen counter / side desk ──
+        // Slight rotation (~40°) toward detail, moved slightly closer
+        waypoints.s3.pos = { x: cx - sx * 0.25, y: EYE_HEIGHT, z: cz + sz * 0.02 }
+        waypoints.s3.target = { x: cx - sx * 0.38, y: EYE_TARGET_Y, z: cz - sz * 0.08 }
+
+        // ── Waypoint C: Approach window/balcony before exiting ──
+        // Walk toward the window side, still at eye level
+        waypoints.s3_midC.pos = { x: cx + sx * 0.1, y: EYE_HEIGHT, z: cz - sz * 0.1 }
+        waypoints.s3_midC.target = { x: cx + sx * 0.3, y: EYE_TARGET_Y, z: cz - sz * 0.15 }
+
+        // ── Section 4 (Pricing): Through window, elevated architectural overview ──
+        // Camera exits through main window and rises above for overview
+        waypoints.s4.pos = { x: cx + sx * 0.5, y: EYE_HEIGHT + sx * 0.5, z: cz + sz * 0.5 }
+        waypoints.s4.target = { x: cx, y: EYE_TARGET_Y, z: cz }
 
         // Set initial camera
-        camera.position.set(
-          cameraData.section1.pos.x,
-          cameraData.section1.pos.y,
-          cameraData.section1.pos.z
-        )
-        currentTarget.set(
-          cameraData.section1.target.x,
-          cameraData.section1.target.y,
-          cameraData.section1.target.z
-        )
+        camera.position.set(waypoints.s1.pos.x, waypoints.s1.pos.y, waypoints.s1.pos.z)
+        currentTarget.set(waypoints.s1.target.x, waypoints.s1.target.y, waypoints.s1.target.z)
 
-        // Update sun position relative to model
-        sunLight.position.set(cx + sx * 0.3, cy + sy * 1.2, cz + sz * 0.2)
-        sunLight.target.position.set(cx, cy, cz)
+        // Update lights relative to model
+        sunLight.position.set(cx + sx * 0.3, EYE_HEIGHT + sx * 0.8, cz + sz * 0.2)
+        sunLight.target.position.set(cx, EYE_HEIGHT, cz)
         sunLight.target.updateMatrixWorld()
+        rimLight.position.set(cx, EYE_HEIGHT + 3, cz)
 
-        // Update rim light
-        rimLight.position.set(cx, cy + sy * 0.5, cz)
+        console.log('[ARQAI] Model loaded. Waypoints configured:')
+        console.log('[ARQAI] S1:', JSON.stringify(waypoints.s1))
+        console.log('[ARQAI] S2:', JSON.stringify(waypoints.s2))
+        console.log('[ARQAI] S3:', JSON.stringify(waypoints.s3))
+        console.log('[ARQAI] S4:', JSON.stringify(waypoints.s4))
+        console.log('[ARQAI] Apartment bounds:', { cx, cz, sx, sz })
       }
 
       // ─── Load GLB Model ───
@@ -214,18 +238,10 @@ export default function Home() {
           setLoadProgress(100)
           setTimeout(() => setLoading(false), 800)
 
-          // Rebuild scroll animations after model loads
+          // Rebuild scroll animations after model loads with proper waypoints
           setTimeout(() => {
-            camera.position.set(
-              cameraData.section1.pos.x,
-              cameraData.section1.pos.y,
-              cameraData.section1.pos.z
-            )
-            currentTarget.set(
-              cameraData.section1.target.x,
-              cameraData.section1.target.y,
-              cameraData.section1.target.z
-            )
+            camera.position.set(waypoints.s1.pos.x, waypoints.s1.pos.y, waypoints.s1.pos.z)
+            currentTarget.set(waypoints.s1.target.x, waypoints.s1.target.y, waypoints.s1.target.z)
             setupScrollAnimations()
           }, 600)
         },
@@ -244,7 +260,7 @@ export default function Home() {
         }
       )
 
-      // Fallback timeout for slow connections
+      // Fallback timeout
       setTimeout(() => {
         if (!glbLoaded && !sceneReady && !cleanup) {
           sceneReady = true
@@ -253,87 +269,162 @@ export default function Home() {
         }
       }, 10000)
 
-      // ─── GSAP ScrollTrigger Setup ───
+      // ─── GSAP ScrollTrigger with Waypoint Navigation ───
+      // Instead of single gsap.to per section (which creates straight diagonal
+      // paths that clip through walls), we use GSAP timelines with sequential
+      // tweens through intermediate waypoints.
       const setupScrollAnimations = () => {
-        // Kill existing ScrollTrigger instances
         ScrollTrigger.getAll().forEach(st => st.kill())
         gsap.killTweensOf(camera.position)
         gsap.killTweensOf(currentTarget)
 
         const sections = scrollContainerRef.current?.querySelectorAll('.arqai-section')
-        if (sections && sections.length >= 4) {
-          // Section 1 → 2: Move deeper into apartment
-          gsap.to(camera.position, {
-            x: cameraData.section2.pos.x,
-            y: cameraData.section2.pos.y,
-            z: cameraData.section2.pos.z,
-            scrollTrigger: {
-              trigger: sections[1],
-              start: 'top bottom',
-              end: 'top top',
-              scrub: 2,
-            },
-          })
-          gsap.to(currentTarget, {
-            x: cameraData.section2.target.x,
-            y: cameraData.section2.target.y,
-            z: cameraData.section2.target.z,
-            scrollTrigger: {
-              trigger: sections[1],
-              start: 'top bottom',
-              end: 'top top',
-              scrub: 2,
-            },
-          })
+        if (!sections || sections.length < 4) return
 
-          // Section 2 → 3: Tight pan along wall/window detail
-          gsap.to(camera.position, {
-            x: cameraData.section3.pos.x,
-            y: cameraData.section3.pos.y,
-            z: cameraData.section3.pos.z,
-            scrollTrigger: {
-              trigger: sections[2],
-              start: 'top bottom',
-              end: 'top top',
-              scrub: 2,
-            },
-          })
-          gsap.to(currentTarget, {
-            x: cameraData.section3.target.x,
-            y: cameraData.section3.target.y,
-            z: cameraData.section3.target.z,
-            scrollTrigger: {
-              trigger: sections[2],
-              start: 'top bottom',
-              end: 'top top',
-              scrub: 2,
-            },
-          })
+        // ── Section 1 → 2: Entrance → Lounge (via waypoint A) ──
+        // Step 1: Walk forward to midpoint A
+        const tl1_cam = gsap.timeline({
+          scrollTrigger: {
+            trigger: sections[1],
+            start: 'top bottom',
+            end: 'top top',
+            scrub: 2,
+          },
+        })
+        tl1_cam.to(camera.position, {
+          x: waypoints.s1_midA.pos.x,
+          y: EYE_HEIGHT, // Force constant Y
+          z: waypoints.s1_midA.pos.z,
+          duration: 1,
+          ease: 'none',
+        })
+        tl1_cam.to(camera.position, {
+          x: waypoints.s2.pos.x,
+          y: EYE_HEIGHT, // Force constant Y
+          z: waypoints.s2.pos.z,
+          duration: 1,
+          ease: 'none',
+        })
 
-          // Section 3 → 4: Elevated wide shot pull-back
-          gsap.to(camera.position, {
-            x: cameraData.section4.pos.x,
-            y: cameraData.section4.pos.y,
-            z: cameraData.section4.pos.z,
-            scrollTrigger: {
-              trigger: sections[3],
-              start: 'top bottom',
-              end: 'top top',
-              scrub: 2,
-            },
-          })
-          gsap.to(currentTarget, {
-            x: cameraData.section4.target.x,
-            y: cameraData.section4.target.y,
-            z: cameraData.section4.target.z,
-            scrollTrigger: {
-              trigger: sections[3],
-              start: 'top bottom',
-              end: 'top top',
-              scrub: 2,
-            },
-          })
-        }
+        const tl1_tgt = gsap.timeline({
+          scrollTrigger: {
+            trigger: sections[1],
+            start: 'top bottom',
+            end: 'top top',
+            scrub: 2,
+          },
+        })
+        tl1_tgt.to(currentTarget, {
+          x: waypoints.s1_midA.target.x,
+          y: EYE_TARGET_Y,
+          z: waypoints.s1_midA.target.z,
+          duration: 1,
+          ease: 'none',
+        })
+        tl1_tgt.to(currentTarget, {
+          x: waypoints.s2.target.x,
+          y: EYE_TARGET_Y,
+          z: waypoints.s2.target.z,
+          duration: 1,
+          ease: 'none',
+        })
+
+        // ── Section 2 → 3: Lounge → Kitchen detail (via waypoint B, side-step) ──
+        // Step 1: Side-step laterally (X axis), Step 2: Approach detail
+        const tl2_cam = gsap.timeline({
+          scrollTrigger: {
+            trigger: sections[2],
+            start: 'top bottom',
+            end: 'top top',
+            scrub: 2,
+          },
+        })
+        tl2_cam.to(camera.position, {
+          x: waypoints.s2_midB.pos.x,
+          y: EYE_HEIGHT, // Force constant Y
+          z: waypoints.s2_midB.pos.z,
+          duration: 1,
+          ease: 'none',
+        })
+        tl2_cam.to(camera.position, {
+          x: waypoints.s3.pos.x,
+          y: EYE_HEIGHT, // Force constant Y
+          z: waypoints.s3.pos.z,
+          duration: 1,
+          ease: 'none',
+        })
+
+        const tl2_tgt = gsap.timeline({
+          scrollTrigger: {
+            trigger: sections[2],
+            start: 'top bottom',
+            end: 'top top',
+            scrub: 2,
+          },
+        })
+        tl2_tgt.to(currentTarget, {
+          x: waypoints.s2_midB.target.x,
+          y: EYE_TARGET_Y,
+          z: waypoints.s2_midB.target.z,
+          duration: 1,
+          ease: 'none',
+        })
+        tl2_tgt.to(currentTarget, {
+          x: waypoints.s3.target.x,
+          y: EYE_TARGET_Y,
+          z: waypoints.s3.target.z,
+          duration: 1,
+          ease: 'none',
+        })
+
+        // ── Section 3 → 4: Interior → Exterior overview (via window waypoint C) ──
+        // Step 1: Walk to window/balcony (still eye level)
+        // Step 2: Smoothly rise and pull back outside for overview
+        const tl3_cam = gsap.timeline({
+          scrollTrigger: {
+            trigger: sections[3],
+            start: 'top bottom',
+            end: 'top top',
+            scrub: 2,
+          },
+        })
+        tl3_cam.to(camera.position, {
+          x: waypoints.s3_midC.pos.x,
+          y: EYE_HEIGHT, // Still at eye level approaching window
+          z: waypoints.s3_midC.pos.z,
+          duration: 1,
+          ease: 'none',
+        })
+        tl3_cam.to(camera.position, {
+          x: waypoints.s4.pos.x,
+          y: waypoints.s4.pos.y, // Only now Y rises (outside)
+          z: waypoints.s4.pos.z,
+          duration: 1,
+          ease: 'power1.in',
+        })
+
+        const tl3_tgt = gsap.timeline({
+          scrollTrigger: {
+            trigger: sections[3],
+            start: 'top bottom',
+            end: 'top top',
+            scrub: 2,
+          },
+        })
+        tl3_tgt.to(currentTarget, {
+          x: waypoints.s3_midC.target.x,
+          y: EYE_TARGET_Y,
+          z: waypoints.s3_midC.target.z,
+          duration: 1,
+          ease: 'none',
+        })
+        tl3_tgt.to(currentTarget, {
+          x: waypoints.s4.target.x,
+          y: waypoints.s4.target.y,
+          z: waypoints.s4.target.z,
+          duration: 1,
+          ease: 'none',
+        })
 
         ScrollTrigger.refresh()
       }
@@ -365,9 +456,14 @@ export default function Home() {
         animationId = requestAnimationFrame(animate)
         const elapsed = clock.getElapsedTime()
 
-        // Subtle camera breathing
-        camera.position.x += Math.sin(elapsed * 0.12) * 0.003
-        camera.position.y += Math.cos(elapsed * 0.15) * 0.002
+        // Very subtle camera breathing — NO Y movement to maintain eye level
+        camera.position.x += Math.sin(elapsed * 0.12) * 0.002
+
+        // Enforce eye-height constraint for sections 1-3 (don't let breathing push Y)
+        // Only allow Y to float freely if camera is already above EYE_HEIGHT + 1 (section 4)
+        if (camera.position.y < EYE_HEIGHT + 1) {
+          camera.position.y = EYE_HEIGHT
+        }
 
         camera.lookAt(currentTarget)
 
@@ -377,6 +473,21 @@ export default function Home() {
         renderer.render(scene, camera)
       }
       animate()
+
+      // ─── Spacebar Coordinate Logger ───
+      const onKeydown = (e: KeyboardEvent) => {
+        if (e.code === 'Space') {
+          e.preventDefault()
+          const p = camera.position
+          const t = currentTarget
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          console.log('[ARQAI] 📷 Camera Position:')
+          console.log(`  pos: { x: ${p.x.toFixed(4)}, y: ${p.y.toFixed(4)}, z: ${p.z.toFixed(4)} }`)
+          console.log(`  target: { x: ${t.x.toFixed(4)}, y: ${t.y.toFixed(4)}, z: ${t.z.toFixed(4)} }`)
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        }
+      }
+      window.addEventListener('keydown', onKeydown)
 
       // ─── Resize Handler ───
       const handleResize = () => {
@@ -394,6 +505,7 @@ export default function Home() {
       const destroy = () => {
         cleanup = true
         window.removeEventListener('resize', handleResize)
+        window.removeEventListener('keydown', onKeydown)
         cancelAnimationFrame(animationId)
         clearInterval(refreshInterval)
         ScrollTrigger.getAll().forEach(t => t.kill())
