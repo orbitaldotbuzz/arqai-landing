@@ -403,7 +403,7 @@ export default function Home() {
       tableLeg.position.set(0.5, 4.0, 12)
       villa.add(tableLeg)
 
-      scene.add(villa)
+      // villa is added to proceduralEnv below, not directly to scene
 
       // Terrain / Hill
       const terrainGeom = new THREE.PlaneGeometry(200, 200, 80, 80)
@@ -441,6 +441,9 @@ export default function Home() {
       ocean.position.set(0, -2.5, -50)
       scene.add(ocean)
 
+      // === Procedural environment group (removed when GLB loads) ===
+      const proceduralEnv = new THREE.Group()
+
       // Palm trees
       const createPalmTree = (x: number, z: number, height: number = 8) => {
         const group = new THREE.Group()
@@ -469,12 +472,12 @@ export default function Home() {
         return group
       }
 
-      scene.add(createPalmTree(16, 10, 7))
-      scene.add(createPalmTree(-18, 12, 9))
-      scene.add(createPalmTree(20, -5, 6))
-      scene.add(createPalmTree(-22, -8, 8))
-      scene.add(createPalmTree(25, 18, 7))
-      scene.add(createPalmTree(-8, 20, 6))
+      proceduralEnv.add(createPalmTree(16, 10, 7))
+      proceduralEnv.add(createPalmTree(-18, 12, 9))
+      proceduralEnv.add(createPalmTree(20, -5, 6))
+      proceduralEnv.add(createPalmTree(-22, -8, 8))
+      proceduralEnv.add(createPalmTree(25, 18, 7))
+      proceduralEnv.add(createPalmTree(-8, 20, 6))
 
       // Landscape bushes
       const bushGeom = new THREE.SphereGeometry(0.8, 8, 6)
@@ -489,7 +492,7 @@ export default function Home() {
         bush.position.set(bx, by, bz)
         bush.scale.set(1, 0.7, 1)
         bush.castShadow = true
-        scene.add(bush)
+        proceduralEnv.add(bush)
       })
 
       // Steps to entrance
@@ -500,7 +503,7 @@ export default function Home() {
         )
         step.position.set(0, 0.1 + i * 0.2, 8 + i * 0.8)
         step.receiveShadow = true
-        scene.add(step)
+        proceduralEnv.add(step)
       }
 
       // Garden wall
@@ -511,65 +514,16 @@ export default function Home() {
       gardenWall.position.set(0, 0.5, 20)
       gardenWall.castShadow = true
       gardenWall.receiveShadow = true
-      scene.add(gardenWall)
+      proceduralEnv.add(gardenWall)
 
-      // Try to load GLB model (fallback: use procedural scene)
-      let glbLoaded = false
-      let sceneReady = false
+      // Add villa and environment to procedural group
+      proceduralEnv.add(villa)
 
-      const loader = new GLTFLoader()
-      loader.load(
-        '/assets/villa.glb',
-        (gltf) => {
-          if (cleanup) return
-          glbLoaded = true
-          scene.remove(villa)
-          const model = gltf.scene
-          model.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-              child.castShadow = true
-              child.receiveShadow = true
-            }
-          })
-          const box = new THREE.Box3().setFromObject(model)
-          const center = box.getCenter(new THREE.Vector3())
-          const size = box.getSize(new THREE.Vector3())
-          const maxDim = Math.max(size.x, size.y, size.z)
-          const scale = 20 / maxDim
-          model.scale.setScalar(scale)
-          model.position.sub(center.multiplyScalar(scale))
-          model.position.y -= box.min.y * scale
-          scene.add(model)
-          sceneReady = true
-          setLoadProgress(100)
-          setTimeout(() => setLoading(false), 800)
-        },
-        (progress) => {
-          if (progress.total > 0) {
-            const pct = Math.round((progress.loaded / progress.total) * 100)
-            setLoadProgress(pct)
-          }
-        },
-        () => {
-          if (!glbLoaded && !cleanup) {
-            sceneReady = true
-            setLoadProgress(100)
-            setTimeout(() => setLoading(false), 800)
-          }
-        }
-      )
+      scene.add(proceduralEnv)
 
-      // Fallback: show procedural scene after timeout
-      setTimeout(() => {
-        if (!glbLoaded && !sceneReady && !cleanup) {
-          sceneReady = true
-          setLoadProgress(100)
-          setTimeout(() => setLoading(false), 800)
-        }
-      }, 2500)
-
-      // Camera animation targets for each section
-      const cameraData = {
+      // Camera animation targets for each section (defaults for procedural villa)
+      // These will be dynamically updated when GLB model loads
+      const cameraData: Record<string, { pos: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }> = {
         section1: { pos: { x: 22, y: 10, z: 28 }, target: { x: 0, y: 4, z: 0 } },
         section2: { pos: { x: 5, y: 5, z: 10 }, target: { x: 0, y: 4, z: -4 } },
         section3: { pos: { x: -3, y: 5, z: -2 }, target: { x: -2, y: 4, z: -6 } },
@@ -578,81 +532,246 @@ export default function Home() {
 
       const currentTarget = new THREE.Vector3(0, 4, 0)
 
-      // GSAP ScrollTrigger camera animations
-      const sections = scrollContainerRef.current?.querySelectorAll('.arqai-section')
-      if (sections && sections.length >= 4) {
-        // Section 1 -> 2 transition
-        gsap.to(camera.position, {
-          x: cameraData.section2.pos.x,
-          y: cameraData.section2.pos.y,
-          z: cameraData.section2.pos.z,
-          scrollTrigger: {
-            trigger: sections[1],
-            start: 'top bottom',
-            end: 'top top',
-            scrub: 2,
-          },
-        })
-        gsap.to(currentTarget, {
-          x: cameraData.section2.target.x,
-          y: cameraData.section2.target.y,
-          z: cameraData.section2.target.z,
-          scrollTrigger: {
-            trigger: sections[1],
-            start: 'top bottom',
-            end: 'top top',
-            scrub: 2,
-          },
-        })
+      // Load GLB model from uploaded file (fallback: use procedural scene)
+      let glbLoaded = false
+      let sceneReady = false
 
-        // Section 2 -> 3 transition
-        gsap.to(camera.position, {
-          x: cameraData.section3.pos.x,
-          y: cameraData.section3.pos.y,
-          z: cameraData.section3.pos.z,
-          scrollTrigger: {
-            trigger: sections[2],
-            start: 'top bottom',
-            end: 'top top',
-            scrub: 2,
-          },
-        })
-        gsap.to(currentTarget, {
-          x: cameraData.section3.target.x,
-          y: cameraData.section3.target.y,
-          z: cameraData.section3.target.z,
-          scrollTrigger: {
-            trigger: sections[2],
-            start: 'top bottom',
-            end: 'top top',
-            scrub: 2,
-          },
-        })
+      // Adjust camera for GLB interior model
+      const updateCameraForModel = (model: THREE.Group) => {
+        const box = new THREE.Box3().setFromObject(model)
+        const center = box.getCenter(new THREE.Vector3())
+        const size = box.getSize(new THREE.Vector3())
+        const maxDim = Math.max(size.x, size.y, size.z)
 
-        // Section 3 -> 4 transition
-        gsap.to(camera.position, {
-          x: cameraData.section4.pos.x,
-          y: cameraData.section4.pos.y,
-          z: cameraData.section4.pos.z,
-          scrollTrigger: {
-            trigger: sections[3],
-            start: 'top bottom',
-            end: 'top top',
-            scrub: 2,
-          },
-        })
-        gsap.to(currentTarget, {
-          x: cameraData.section4.target.x,
-          y: cameraData.section4.target.y,
-          z: cameraData.section4.target.z,
-          scrollTrigger: {
-            trigger: sections[3],
-            start: 'top bottom',
-            end: 'top top',
-            scrub: 2,
-          },
-        })
+        // Scale model to fit a ~20 unit scene
+        const scale = 20 / maxDim
+        model.scale.setScalar(scale)
+
+        // Recalculate bounds after scaling
+        const scaledBox = new THREE.Box3().setFromObject(model)
+        const scaledCenter = scaledBox.getCenter(new THREE.Vector3())
+        const scaledSize = scaledBox.getSize(new THREE.Vector3())
+
+        // Center the model horizontally, place bottom at ground level
+        model.position.x -= scaledCenter.x
+        model.position.z -= scaledCenter.z
+        model.position.y -= scaledBox.min.y
+
+        // Recalculate after position adjustment
+        const finalBox = new THREE.Box3().setFromObject(model)
+        const finalCenter = finalBox.getCenter(new THREE.Vector3())
+
+        // Dynamic camera positions based on model dimensions
+        // Section 1 (Hero): Front diagonal view - dramatic entrance angle
+        cameraData.section1.pos = {
+          x: finalCenter.x + scaledSize.x * 0.8,
+          y: scaledSize.y * 0.6,
+          z: finalCenter.z + scaledSize.z * 0.9
+        }
+        cameraData.section1.target = { x: finalCenter.x, y: finalCenter.y * 0.8, z: finalCenter.z }
+
+        // Section 2 (Workflow): Closer, lower angle - moving in
+        cameraData.section2.pos = {
+          x: finalCenter.x + scaledSize.x * 0.2,
+          y: scaledSize.y * 0.35,
+          z: finalCenter.z + scaledSize.z * 0.4
+        }
+        cameraData.section2.target = { x: finalCenter.x, y: finalCenter.y * 0.6, z: finalCenter.z - scaledSize.z * 0.1 }
+
+        // Section 3 (Solution): Side angle - architectural detail
+        cameraData.section3.pos = {
+          x: finalCenter.x - scaledSize.x * 0.6,
+          y: scaledSize.y * 0.45,
+          z: finalCenter.z - scaledSize.z * 0.1
+        }
+        cameraData.section3.target = { x: finalCenter.x, y: finalCenter.y * 0.7, z: finalCenter.z }
+
+        // Section 4 (Pricing): Wide aerial - dramatic reveal
+        cameraData.section4.pos = {
+          x: finalCenter.x + scaledSize.x * 1.5,
+          y: scaledSize.y * 1.3,
+          z: finalCenter.z + scaledSize.z * 1.6
+        }
+        cameraData.section4.target = { x: finalCenter.x, y: finalCenter.y * 0.9, z: finalCenter.z }
+
+        // Set initial camera position
+        camera.position.set(
+          cameraData.section1.pos.x,
+          cameraData.section1.pos.y,
+          cameraData.section1.pos.z
+        )
+        currentTarget.set(
+          cameraData.section1.target.x,
+          cameraData.section1.target.y,
+          cameraData.section1.target.z
+        )
       }
+
+      const loader = new GLTFLoader()
+      loader.load(
+        '/assets/interior.glb',
+        (gltf) => {
+          if (cleanup) return
+          glbLoaded = true
+          // Remove entire procedural environment
+          scene.remove(proceduralEnv)
+          scene.remove(terrain)
+          scene.remove(ocean)
+
+          const model = gltf.scene
+          model.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+              child.castShadow = true
+              child.receiveShadow = true
+            }
+          })
+
+          // Scale and position the model properly
+          updateCameraForModel(model)
+          scene.add(model)
+
+          // Add a ground plane under the model
+          const groundPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(100, 100),
+            new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.95 })
+          )
+          groundPlane.rotation.x = -Math.PI / 2
+          groundPlane.position.y = -0.01
+          groundPlane.receiveShadow = true
+          scene.add(groundPlane)
+
+          sceneReady = true
+          setLoadProgress(100)
+          setTimeout(() => setLoading(false), 800)
+
+          // Rebuild scroll animations with updated camera positions for the loaded model
+          setTimeout(() => {
+            // Reset camera to the starting position for the GLB model
+            camera.position.set(
+              cameraData.section1.pos.x,
+              cameraData.section1.pos.y,
+              cameraData.section1.pos.z
+            )
+            currentTarget.set(
+              cameraData.section1.target.x,
+              cameraData.section1.target.y,
+              cameraData.section1.target.z
+            )
+            setupScrollAnimations()
+          }, 500)
+        },
+        (progress) => {
+          if (progress.total > 0) {
+            const pct = Math.round((progress.loaded / progress.total) * 100)
+            setLoadProgress(pct)
+          }
+        },
+        (error) => {
+          // GLB load failed - use procedural scene
+          if (!glbLoaded && !cleanup) {
+            sceneReady = true
+            setLoadProgress(100)
+            setTimeout(() => setLoading(false), 800)
+          }
+        }
+      )
+
+      // Fallback: show procedural scene after timeout (large GLB may take time)
+      setTimeout(() => {
+        if (!glbLoaded && !sceneReady && !cleanup) {
+          sceneReady = true
+          setLoadProgress(100)
+          setTimeout(() => setLoading(false), 800)
+        }
+      }, 8000)
+
+      // GSAP ScrollTrigger setup function (reusable when GLB loads)
+      const setupScrollAnimations = () => {
+        // Kill ALL existing ScrollTrigger instances and tweens on camera
+        ScrollTrigger.getAll().forEach(st => st.kill())
+        gsap.killTweensOf(camera.position)
+        gsap.killTweensOf(currentTarget)
+
+        const sections = scrollContainerRef.current?.querySelectorAll('.arqai-section')
+        if (sections && sections.length >= 4) {
+          // Section 1 -> 2 transition
+          gsap.to(camera.position, {
+            x: cameraData.section2.pos.x,
+            y: cameraData.section2.pos.y,
+            z: cameraData.section2.pos.z,
+            scrollTrigger: {
+              trigger: sections[1],
+              start: 'top bottom',
+              end: 'top top',
+              scrub: 2,
+            },
+          })
+          gsap.to(currentTarget, {
+            x: cameraData.section2.target.x,
+            y: cameraData.section2.target.y,
+            z: cameraData.section2.target.z,
+            scrollTrigger: {
+              trigger: sections[1],
+              start: 'top bottom',
+              end: 'top top',
+              scrub: 2,
+            },
+          })
+
+          // Section 2 -> 3 transition
+          gsap.to(camera.position, {
+            x: cameraData.section3.pos.x,
+            y: cameraData.section3.pos.y,
+            z: cameraData.section3.pos.z,
+            scrollTrigger: {
+              trigger: sections[2],
+              start: 'top bottom',
+              end: 'top top',
+              scrub: 2,
+            },
+          })
+          gsap.to(currentTarget, {
+            x: cameraData.section3.target.x,
+            y: cameraData.section3.target.y,
+            z: cameraData.section3.target.z,
+            scrollTrigger: {
+              trigger: sections[2],
+              start: 'top bottom',
+              end: 'top top',
+              scrub: 2,
+            },
+          })
+
+          // Section 3 -> 4 transition
+          gsap.to(camera.position, {
+            x: cameraData.section4.pos.x,
+            y: cameraData.section4.pos.y,
+            z: cameraData.section4.pos.z,
+            scrollTrigger: {
+              trigger: sections[3],
+              start: 'top bottom',
+              end: 'top top',
+              scrub: 2,
+            },
+          })
+          gsap.to(currentTarget, {
+            x: cameraData.section4.target.x,
+            y: cameraData.section4.target.y,
+            z: cameraData.section4.target.z,
+            scrollTrigger: {
+              trigger: sections[3],
+              start: 'top bottom',
+              end: 'top top',
+              scrub: 2,
+            },
+          })
+        }
+
+        ScrollTrigger.refresh()
+      }
+
+      // Initial setup with procedural villa camera positions
+      setupScrollAnimations()
 
       // GSAP scroll-reveal animations for content cards
       const contentCards = scrollContainerRef.current?.querySelectorAll('.reveal-card')
