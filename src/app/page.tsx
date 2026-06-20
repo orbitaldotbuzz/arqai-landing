@@ -309,9 +309,11 @@ export default function Home() {
     }
   }, [])
 
-  // ─── Shared card style ───
-  const cardBase = 'backdrop-blur-md border border-white/[0.07] rounded-2xl shadow-2xl shadow-black/40'
-  const cardBg = { backgroundColor: 'rgba(3, 5, 7, 0.85)' }
+  // ─── Shared card styles ───
+  const cardBase = 'backdrop-blur-xl border border-white/[0.10] rounded-2xl shadow-2xl shadow-black/30'
+  const cardBg = { backgroundColor: 'rgba(3, 5, 7, 0.75)' }
+  const cardBgLight = { backgroundColor: 'rgba(0, 0, 0, 0.25)' }
+  const cardBgMedium = { backgroundColor: 'rgba(3, 5, 7, 0.65)' }
 
   return (
     <>
@@ -351,9 +353,9 @@ export default function Home() {
         </nav>
 
         {/* ─────────────── SECTION 1: HERO ─────────────── */}
-        <section className="arqai-section min-h-screen flex items-center px-6 md:px-12 lg:px-20 pt-24 pb-12" style={{ pointerEvents: 'none' }}>
-          <div className="max-w-2xl w-full pointer-events-auto">
-            <div className={`reveal-card ${cardBase} p-8 md:p-12`} style={cardBg}>
+        <section className="arqai-section min-h-screen flex items-center justify-center px-6 md:px-12 lg:px-20 pt-24 pb-12" style={{ pointerEvents: 'none' }}>
+          <div className="max-w-2xl w-full pointer-events-auto mx-auto">
+            <div className={`reveal-card ${cardBase} p-8 md:p-12`} style={cardBgLight}>
               <span className="text-[#00f5ff] text-[11px] tracking-[0.3em] font-medium uppercase">Método Inovador</span>
               <h2 className="text-3xl md:text-4xl lg:text-[2.75rem] font-extralight text-white leading-[1.15] mt-5">
                 Produção de Conteúdo para Arquitetos com Inteligência Artificial
@@ -391,8 +393,8 @@ export default function Home() {
           <div className="max-w-5xl w-full text-center pointer-events-auto">
             <div className="reveal-card">
               <span className="text-[#00f5ff] text-[11px] tracking-[0.3em] font-medium uppercase">Processo</span>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-white mt-4">O Fluxo de Trabalho Real</h2>
-              <p className="text-white/45 text-base md:text-lg font-light mt-4 max-w-2xl mx-auto">Domine as 3 etapas essenciais para revolucionar sua produção.</p>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-slate-900 mt-4">O Fluxo de Trabalho Real</h2>
+              <p className="text-slate-700 text-base md:text-lg font-light mt-4 max-w-2xl mx-auto">Domine as 3 etapas essenciais para revolucionar sua produção.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-14">
               {[
@@ -400,10 +402,10 @@ export default function Home() {
                 { num: '02', title: 'PROCESSAMENTO', desc: 'Domínio prático das melhores ferramentas de IA do mercado para renderizar, mobiliar, alterar materiais e texturas em minutos.' },
                 { num: '03', title: 'FINALIZAÇÃO', desc: 'Técnicas de edição de alto nível e geração de vídeos cinemáticos magnéticos para encantar e converter sua audiência nas redes sociais.' },
               ].map((card) => (
-                <div key={card.num} className={`reveal-card ${cardBase} p-8 text-left hover:border-[#00f5ff]/15 transition-all duration-700`} style={cardBg}>
-                  <span className="text-[#00f5ff]/20 text-6xl font-extralight leading-none">{card.num}</span>
+                <div key={card.num} className={`reveal-card ${cardBase} p-8 text-left hover:border-[#00f5ff]/15 transition-all duration-700`} style={cardBgMedium}>
+                  <span className="text-[#00f5ff]/25 text-6xl font-extralight leading-none">{card.num}</span>
                   <h3 className="text-white text-lg font-light tracking-[0.15em] mt-5">{card.title}</h3>
-                  <p className="text-white/45 text-sm font-light leading-relaxed mt-3">{card.desc}</p>
+                  <p className="text-white/50 text-sm font-light leading-relaxed mt-3">{card.desc}</p>
                 </div>
               ))}
             </div>
@@ -411,8 +413,8 @@ export default function Home() {
         </section>
 
         {/* ─────────────── SECTION 3: SOLUTION ─────────────── */}
-        <section className="arqai-section min-h-screen flex items-center px-6 md:px-12 lg:px-20 py-24" style={{ pointerEvents: 'none' }}>
-          <div className="max-w-3xl w-full ml-auto pointer-events-auto">
+        <section className="arqai-section min-h-screen flex items-center justify-center px-6 md:px-12 lg:px-20 py-24" style={{ pointerEvents: 'none' }}>
+          <div className="max-w-3xl w-full pointer-events-auto mx-auto">
             <div className={`reveal-card ${cardBase} p-8 md:p-12`} style={cardBg}>
               <span className="text-[#00f5ff] text-[11px] tracking-[0.3em] font-medium uppercase">Solução</span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-white mt-5 leading-[1.15]">Fim do Gargalo 3D</h2>
@@ -431,12 +433,13 @@ export default function Home() {
           <div className="max-w-4xl w-full text-center pointer-events-auto">
             <div className="reveal-card">
               <span className="text-[#00f5ff] text-[11px] tracking-[0.3em] font-medium uppercase">Jornada</span>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-white mt-4">Escolha Sua Jornada</h2>
-              <p className="text-white/45 text-base md:text-lg font-light mt-4 max-w-2xl mx-auto">Do aprendizado autônomo à consultoria especializada.</p>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-slate-900 mt-4">Escolha Sua Jornada</h2>
+              <p className="text-slate-700 text-base md:text-lg font-light mt-4 max-w-2xl mx-auto">Do aprendizado autônomo à consultoria especializada.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-14">
+            {/* Grid with equal-height cards via items-stretch (default) + flex-col inside */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-14 items-stretch">
               {/* Card 1 */}
-              <div className={`reveal-card ${cardBase} p-8 md:p-10 text-left hover:border-white/[0.12] transition-all duration-700`} style={cardBg}>
+              <div className={`reveal-card ${cardBase} p-8 md:p-10 text-left hover:border-white/[0.12] transition-all duration-700 flex flex-col`} style={cardBgMedium}>
                 <h3 className="text-white text-xl font-light tracking-[0.12em]">Curso Gravado</h3>
                 <p className="text-white/35 text-sm font-light mt-2">Acesso imediato e vitalício.</p>
                 <div className="mt-6"><span className="text-4xl font-extralight text-white">R$ 39,90</span></div>
@@ -448,10 +451,11 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <button className="w-full mt-8 border border-white/25 text-white/80 py-4 text-sm tracking-wider hover:border-[#00f5ff]/50 hover:text-[#00f5ff] transition-all duration-300 backdrop-blur-sm bg-white/[0.03] rounded-sm">Comprar Agora</button>
+                {/* mt-auto pushes button to bottom of card */}
+                <button className="mt-auto w-full border border-white/25 text-white/80 py-4 text-sm tracking-wider hover:border-[#00f5ff]/50 hover:text-[#00f5ff] transition-all duration-300 backdrop-blur-sm bg-white/[0.03] rounded-sm">Comprar Agora</button>
               </div>
               {/* Card 2 */}
-              <div className={`reveal-card relative ${cardBase} p-8 md:p-10 text-left hover:border-[#00f5ff]/35 transition-all duration-700 shadow-[0_0_30px_rgba(0,245,255,0.03)]`} style={{ ...cardBg, borderColor: 'rgba(0,245,255,0.2)' }}>
+              <div className={`reveal-card relative ${cardBase} p-8 md:p-10 text-left hover:border-[#00f5ff]/35 transition-all duration-700 shadow-[0_0_30px_rgba(0,245,255,0.03)] flex flex-col`} style={{ ...cardBgMedium, borderColor: 'rgba(0,245,255,0.2)' }}>
                 <span className="absolute -top-3 right-6 bg-[#00f5ff] text-[#030507] text-[10px] tracking-[0.25em] font-bold px-5 py-1.5 uppercase">Recomendado</span>
                 <h3 className="text-white text-xl font-light tracking-[0.12em]">Mentoria Especialista</h3>
                 <p className="text-white/35 text-sm font-light mt-2">Foco B2B e Implementação Real.</p>
@@ -468,7 +472,8 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <button className="w-full mt-8 bg-[#00f5ff] text-[#030507] font-semibold py-4 text-sm tracking-wider hover:bg-[#00d4dd] hover:shadow-lg hover:shadow-[#00f5ff]/20 transition-all duration-300 rounded-sm">Falar com Consultor</button>
+                {/* mt-auto pushes button to bottom of card */}
+                <button className="mt-auto w-full bg-[#00f5ff] text-[#030507] font-semibold py-4 text-sm tracking-wider hover:bg-[#00d4dd] hover:shadow-lg hover:shadow-[#00f5ff]/20 transition-all duration-300 rounded-sm">Falar com Consultor</button>
               </div>
             </div>
           </div>
