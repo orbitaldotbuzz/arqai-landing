@@ -22,13 +22,12 @@ export default function Home() {
       const ScrollTrigger = scrollTriggerModule.ScrollTrigger
       gsap.registerPlugin(ScrollTrigger)
 
-      // Scene setup
+      // ─── Scene ───
       const scene = new THREE.Scene()
       scene.background = new THREE.Color(0x030507)
-      scene.fog = new THREE.FogExp2(0x030507, 0.01)
 
-      const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000)
-      camera.position.set(22, 10, 28)
+      const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500)
+      camera.position.set(8, 3, 8)
 
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current!,
@@ -40,561 +39,135 @@ export default function Home() {
       renderer.shadowMap.enabled = true
       renderer.shadowMap.type = THREE.PCFShadowMap
       renderer.toneMapping = THREE.ACESFilmicToneMapping
-      renderer.toneMappingExposure = 1.3
+      renderer.toneMappingExposure = 1.4
       renderer.outputColorSpace = THREE.SRGBColorSpace
 
-      // Lighting
-      const ambientLight = new THREE.AmbientLight(0x404060, 0.8)
+      // ─── Indoor Lighting ───
+      // Clean ambient for general visibility
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.8)
       scene.add(ambientLight)
 
-      const sunLight = new THREE.DirectionalLight(0xffeedd, 3)
-      sunLight.position.set(30, 40, 20)
+      // Soft directional sunlight through apartment windows
+      const sunLight = new THREE.DirectionalLight(0xfff5e6, 2.0)
+      sunLight.position.set(5, 8, 3)
       sunLight.castShadow = true
       sunLight.shadow.mapSize.width = 2048
       sunLight.shadow.mapSize.height = 2048
-      sunLight.shadow.camera.near = 0.5
-      sunLight.shadow.camera.far = 150
-      sunLight.shadow.camera.left = -50
-      sunLight.shadow.camera.right = 50
-      sunLight.shadow.camera.top = 50
-      sunLight.shadow.camera.bottom = -50
-      sunLight.shadow.bias = -0.0005
+      sunLight.shadow.camera.near = 0.1
+      sunLight.shadow.camera.far = 50
+      sunLight.shadow.camera.left = -15
+      sunLight.shadow.camera.right = 15
+      sunLight.shadow.camera.top = 15
+      sunLight.shadow.camera.bottom = -15
+      sunLight.shadow.bias = -0.0002
       scene.add(sunLight)
 
-      const fillLight = new THREE.DirectionalLight(0x8899cc, 0.5)
-      fillLight.position.set(-20, 10, -10)
+      // Soft fill from opposite side
+      const fillLight = new THREE.DirectionalLight(0xddeeff, 0.4)
+      fillLight.position.set(-4, 3, -2)
       scene.add(fillLight)
 
-      const rimLight = new THREE.DirectionalLight(0x00f5ff, 0.12)
-      rimLight.position.set(-10, 5, 30)
-      scene.add(rimLight)
-
-      // Hemisphere light for natural sky contribution
-      const hemiLight = new THREE.HemisphereLight(0x446688, 0x223322, 0.3)
+      // Hemisphere light for natural sky/ground bounce
+      const hemiLight = new THREE.HemisphereLight(0xcce0ff, 0x222222, 0.3)
       scene.add(hemiLight)
 
-      // Materials
-      const whiteConcrete = new THREE.MeshStandardMaterial({
-        color: 0xe8e8e8,
-        roughness: 0.65,
-        metalness: 0.0,
-      })
-      const darkConcrete = new THREE.MeshStandardMaterial({
-        color: 0x3a3a3a,
-        roughness: 0.8,
-        metalness: 0.0,
-      })
-      const glassMat = new THREE.MeshPhysicalMaterial({
-        color: 0x88ccff,
-        transparent: true,
-        opacity: 0.2,
-        metalness: 0.1,
-        roughness: 0.05,
-        transmission: 0.9,
-        thickness: 0.5,
-        envMapIntensity: 1.0,
-      })
-      const woodMat = new THREE.MeshStandardMaterial({
-        color: 0x8B6914,
-        roughness: 0.55,
-        metalness: 0.0,
-      })
-      const waterMat = new THREE.MeshPhysicalMaterial({
-        color: 0x006688,
-        roughness: 0.1,
-        metalness: 0.3,
-        transparent: true,
-        opacity: 0.85,
-      })
-      const poolWaterMat = new THREE.MeshPhysicalMaterial({
-        color: 0x00bbdd,
-        roughness: 0.05,
-        metalness: 0.2,
-        transparent: true,
-        opacity: 0.65,
-      })
-      const terrainMat = new THREE.MeshStandardMaterial({
-        color: 0x2d5a1e,
-        roughness: 0.9,
-        metalness: 0.0,
-      })
-      const stoneMat = new THREE.MeshStandardMaterial({
-        color: 0x888888,
-        roughness: 0.9,
-        metalness: 0.0,
-      })
+      // Subtle accent rim light
+      const rimLight = new THREE.PointLight(0x00f5ff, 0.3, 30)
+      rimLight.position.set(0, 5, 0)
+      scene.add(rimLight)
 
-      // Create villa group
-      const villa = new THREE.Group()
-
-      // Main building - ground floor
-      const mainFloor = new THREE.Mesh(
-        new THREE.BoxGeometry(22, 4, 16),
-        whiteConcrete
-      )
-      mainFloor.position.set(0, 2, 0)
-      mainFloor.castShadow = true
-      mainFloor.receiveShadow = true
-      villa.add(mainFloor)
-
-      // Second floor volume (offset)
-      const secondFloor = new THREE.Mesh(
-        new THREE.BoxGeometry(18, 3.5, 14),
-        whiteConcrete
-      )
-      secondFloor.position.set(2, 5.75, -1)
-      secondFloor.castShadow = true
-      secondFloor.receiveShadow = true
-      villa.add(secondFloor)
-
-      // Third floor element (cantilevered)
-      const thirdFloor = new THREE.Mesh(
-        new THREE.BoxGeometry(12, 3, 10),
-        whiteConcrete
-      )
-      thirdFloor.position.set(-4, 9, -2)
-      thirdFloor.castShadow = true
-      thirdFloor.receiveShadow = true
-      villa.add(thirdFloor)
-
-      // Dark accent band (ground floor base)
-      const baseBand = new THREE.Mesh(
-        new THREE.BoxGeometry(22.2, 0.8, 16.2),
-        darkConcrete
-      )
-      baseBand.position.set(0, 0.4, 0)
-      baseBand.castShadow = true
-      baseBand.receiveShadow = true
-      villa.add(baseBand)
-
-      // Front glass wall - ground floor
-      const frontGlass1 = new THREE.Mesh(
-        new THREE.BoxGeometry(12, 3.2, 0.08),
-        glassMat
-      )
-      frontGlass1.position.set(0, 2, 8.04)
-      villa.add(frontGlass1)
-
-      // Front glass wall - second floor
-      const frontGlass2 = new THREE.Mesh(
-        new THREE.BoxGeometry(10, 2.8, 0.08),
-        glassMat
-      )
-      frontGlass2.position.set(2, 5.9, 6.04)
-      villa.add(frontGlass2)
-
-      // Side glass panels
-      const sideGlass1 = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, 3.2, 8),
-        glassMat
-      )
-      sideGlass1.position.set(11.04, 2, 0)
-      villa.add(sideGlass1)
-
-      const sideGlass2 = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, 2.8, 6),
-        glassMat
-      )
-      sideGlass2.position.set(-10.04, 5.9, -1)
-      villa.add(sideGlass2)
-
-      // Back glass (looking at ocean)
-      const backGlass = new THREE.Mesh(
-        new THREE.BoxGeometry(16, 3.2, 0.08),
-        glassMat
-      )
-      backGlass.position.set(0, 2, -8.04)
-      villa.add(backGlass)
-
-      // Third floor glass
-      const thirdGlass = new THREE.Mesh(
-        new THREE.BoxGeometry(8, 2.5, 0.08),
-        glassMat
-      )
-      thirdGlass.position.set(-4, 9, 3.04)
-      villa.add(thirdGlass)
-
-      // Wooden deck / terrace
-      const terrace = new THREE.Mesh(
-        new THREE.BoxGeometry(10, 0.2, 6),
-        woodMat
-      )
-      terrace.position.set(0, 4.0, 11)
-      terrace.castShadow = true
-      terrace.receiveShadow = true
-      villa.add(terrace)
-
-      // Second floor balcony
-      const balcony = new THREE.Mesh(
-        new THREE.BoxGeometry(8, 0.2, 4),
-        woodMat
-      )
-      balcony.position.set(2, 7.5, 8)
-      balcony.castShadow = true
-      balcony.receiveShadow = true
-      villa.add(balcony)
-
-      // Balcony railing
-      const railingMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.8 })
-      for (let i = 0; i < 8; i++) {
-        const rail = new THREE.Mesh(
-          new THREE.BoxGeometry(0.05, 1, 0.05),
-          railingMat
-        )
-        rail.position.set(-1.5 + i * 0.9, 8.1, 9.5)
-        villa.add(rail)
-      }
-      const railTop = new THREE.Mesh(
-        new THREE.BoxGeometry(8, 0.05, 0.08),
-        railingMat
-      )
-      railTop.position.set(2, 8.6, 9.5)
-      villa.add(railTop)
-
-      // Terrace railing
-      for (let i = 0; i < 10; i++) {
-        const rail = new THREE.Mesh(
-          new THREE.BoxGeometry(0.05, 1, 0.05),
-          railingMat
-        )
-        rail.position.set(-4 + i * 1.0, 4.6, 13.5)
-        villa.add(rail)
-      }
-      const terrRailTop = new THREE.Mesh(
-        new THREE.BoxGeometry(10, 0.05, 0.08),
-        railingMat
-      )
-      terrRailTop.position.set(0, 5.1, 13.5)
-      villa.add(terrRailTop)
-
-      // Infinity pool
-      const poolShell = new THREE.Mesh(
-        new THREE.BoxGeometry(8, 1.2, 4),
-        darkConcrete
-      )
-      poolShell.position.set(0, 0.2, 16)
-      poolShell.castShadow = true
-      villa.add(poolShell)
-
-      const poolWater = new THREE.Mesh(
-        new THREE.BoxGeometry(7.6, 0.05, 3.6),
-        poolWaterMat
-      )
-      poolWater.position.set(0, 0.78, 16)
-      villa.add(poolWater)
-
-      // Garage volume
-      const garage = new THREE.Mesh(
-        new THREE.BoxGeometry(6, 3, 8),
-        darkConcrete
-      )
-      garage.position.set(-14, 1.5, 2)
-      garage.castShadow = true
-      garage.receiveShadow = true
-      villa.add(garage)
-
-      const garageDoor = new THREE.Mesh(
-        new THREE.BoxGeometry(4, 2.5, 0.08),
-        new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.3 })
-      )
-      garageDoor.position.set(-14, 1.5, 6.04)
-      villa.add(garageDoor)
-
-      // Entry canopy
-      const canopy = new THREE.Mesh(
-        new THREE.BoxGeometry(6, 0.15, 3),
-        whiteConcrete
-      )
-      canopy.position.set(0, 4.1, 9.5)
-      canopy.castShadow = true
-      villa.add(canopy)
-
-      // Canopy supports
-      const supportMat = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.3, metalness: 0.7 })
-      const support1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.9, 8), supportMat)
-      support1.position.set(-2.8, 2.05, 10.8)
-      villa.add(support1)
-      const support2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.9, 8), supportMat)
-      support2.position.set(2.8, 2.05, 10.8)
-      villa.add(support2)
-
-      // Roof slab (flat roof)
-      const roofSlab = new THREE.Mesh(
-        new THREE.BoxGeometry(20, 0.3, 16),
-        darkConcrete
-      )
-      roofSlab.position.set(0, 11.15, -2)
-      roofSlab.castShadow = true
-      villa.add(roofSlab)
-
-      // Third floor roof
-      const roof3 = new THREE.Mesh(
-        new THREE.BoxGeometry(14, 0.3, 12),
-        darkConcrete
-      )
-      roof3.position.set(-4, 10.65, -2)
-      roof3.castShadow = true
-      villa.add(roof3)
-
-      // Driveway
-      const driveway = new THREE.Mesh(
-        new THREE.BoxGeometry(4, 0.05, 15),
-        stoneMat
-      )
-      driveway.position.set(-14, 0.02, 12)
-      driveway.receiveShadow = true
-      villa.add(driveway)
-
-      // Entry path
-      const entryPath = new THREE.Mesh(
-        new THREE.BoxGeometry(2, 0.05, 5),
-        stoneMat
-      )
-      entryPath.position.set(0, 0.02, 10.5)
-      entryPath.receiveShadow = true
-      villa.add(entryPath)
-
-      // Interior warm lights (emissive to simulate interior lighting)
-      const interiorLightMat = new THREE.MeshStandardMaterial({
-        color: 0xffeedd,
-        emissive: 0xffeedd,
-        emissiveIntensity: 0.8,
-      })
-      const intLightPositions = [
-        [3, 3.9, 2], [-3, 3.9, -2], [6, 3.9, 4], [-6, 3.9, -4],
-        [0, 3.9, 5], [0, 3.9, -5], [4, 7.6, 0], [-2, 7.6, -3],
-      ]
-      intLightPositions.forEach(([lx, ly, lz]) => {
-        const intLight = new THREE.Mesh(
-          new THREE.BoxGeometry(0.8, 0.04, 0.8),
-          interiorLightMat
-        )
-        intLight.position.set(lx, ly, lz)
-        villa.add(intLight)
-      })
-
-      // Point lights for interior warm glow
-      const interiorPL1 = new THREE.PointLight(0xffeedd, 1.5, 15)
-      interiorPL1.position.set(0, 3, 0)
-      villa.add(interiorPL1)
-
-      const interiorPL2 = new THREE.PointLight(0xffeedd, 1.0, 15)
-      interiorPL2.position.set(2, 7, -1)
-      villa.add(interiorPL2)
-
-      // Outdoor furniture (simple)
-      const loungeMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.5 })
-      const lounge1 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 2), loungeMat)
-      lounge1.position.set(3, 4.2, 12)
-      lounge1.castShadow = true
-      villa.add(lounge1)
-
-      const lounge2 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 2), loungeMat)
-      lounge2.position.set(-2, 4.2, 12)
-      lounge2.castShadow = true
-      villa.add(lounge2)
-
-      // Small table
-      const tableMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.3, metalness: 0.5 })
-      const table = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 16), tableMat)
-      table.position.set(0.5, 4.15, 12)
-      villa.add(table)
-      const tableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8), tableMat)
-      tableLeg.position.set(0.5, 4.0, 12)
-      villa.add(tableLeg)
-
-      // villa is added to proceduralEnv below, not directly to scene
-
-      // Terrain / Hill
-      const terrainGeom = new THREE.PlaneGeometry(200, 200, 80, 80)
-      const vertices = terrainGeom.attributes.position.array
-      for (let i = 0; i < vertices.length; i += 3) {
-        const x = vertices[i]
-        const y = vertices[i + 1]
-        let height = -1.5
-        const distFromCenter = Math.sqrt(x * x + y * y)
-        if (distFromCenter < 35) {
-          height += Math.max(0, (35 - distFromCenter) * 0.08)
-        }
-        if (y < -20) {
-          height += Math.abs(y + 20) * 0.15
-        }
-        if (Math.abs(x) < 20 && Math.abs(y) < 20) {
-          height = Math.max(height, -0.5)
-        }
-        if (y > 20) {
-          height = Math.min(height, -2)
-        }
-        vertices[i + 2] = height
-      }
-      terrainGeom.computeVertexNormals()
-      const terrain = new THREE.Mesh(terrainGeom, terrainMat)
-      terrain.rotation.x = -Math.PI / 2
-      terrain.position.y = -0.5
-      terrain.receiveShadow = true
-      scene.add(terrain)
-
-      // Ocean
-      const oceanGeom = new THREE.PlaneGeometry(300, 150)
-      const ocean = new THREE.Mesh(oceanGeom, waterMat)
-      ocean.rotation.x = -Math.PI / 2
-      ocean.position.set(0, -2.5, -50)
-      scene.add(ocean)
-
-      // === Procedural environment group (removed when GLB loads) ===
-      const proceduralEnv = new THREE.Group()
-
-      // Palm trees
-      const createPalmTree = (x: number, z: number, height: number = 8) => {
-        const group = new THREE.Group()
-        const trunkGeom = new THREE.CylinderGeometry(0.15, 0.25, height, 8)
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6B4226, roughness: 0.8 })
-        const trunk = new THREE.Mesh(trunkGeom, trunkMat)
-        trunk.position.set(0, height / 2, 0)
-        trunk.castShadow = true
-        group.add(trunk)
-
-        const leafMat = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.7, side: THREE.DoubleSide })
-        for (let i = 0; i < 7; i++) {
-          const angle = (i / 7) * Math.PI * 2
-          const leafShape = new THREE.Shape()
-          leafShape.moveTo(0, 0)
-          leafShape.quadraticCurveTo(1.5, 1.5, 4, 0.5)
-          leafShape.quadraticCurveTo(1.5, 0.5, 0, 0)
-          const leafGeom = new THREE.ShapeGeometry(leafShape)
-          const leaf = new THREE.Mesh(leafGeom, leafMat)
-          leaf.position.set(0, height, 0)
-          leaf.rotation.set(-0.4, angle, 0)
-          leaf.castShadow = true
-          group.add(leaf)
-        }
-        group.position.set(x, -0.5, z)
-        return group
-      }
-
-      proceduralEnv.add(createPalmTree(16, 10, 7))
-      proceduralEnv.add(createPalmTree(-18, 12, 9))
-      proceduralEnv.add(createPalmTree(20, -5, 6))
-      proceduralEnv.add(createPalmTree(-22, -8, 8))
-      proceduralEnv.add(createPalmTree(25, 18, 7))
-      proceduralEnv.add(createPalmTree(-8, 20, 6))
-
-      // Landscape bushes
-      const bushGeom = new THREE.SphereGeometry(0.8, 8, 6)
-      const bushMat = new THREE.MeshStandardMaterial({ color: 0x1a5c1a, roughness: 0.9 })
-      const bushPositions = [
-        [8, -0.1, 9], [-8, -0.1, 9], [12, -0.1, 4], [-12, -0.1, 4],
-        [5, -0.1, -9], [-5, -0.1, -9], [15, -0.1, -3], [-15, -0.1, 0],
-        [10, -0.1, -6], [-10, -0.1, -6],
-      ]
-      bushPositions.forEach(([bx, by, bz]) => {
-        const bush = new THREE.Mesh(bushGeom, bushMat)
-        bush.position.set(bx, by, bz)
-        bush.scale.set(1, 0.7, 1)
-        bush.castShadow = true
-        proceduralEnv.add(bush)
-      })
-
-      // Steps to entrance
-      for (let i = 0; i < 3; i++) {
-        const step = new THREE.Mesh(
-          new THREE.BoxGeometry(3, 0.2, 0.8),
-          stoneMat
-        )
-        step.position.set(0, 0.1 + i * 0.2, 8 + i * 0.8)
-        step.receiveShadow = true
-        proceduralEnv.add(step)
-      }
-
-      // Garden wall
-      const gardenWall = new THREE.Mesh(
-        new THREE.BoxGeometry(30, 1.5, 0.3),
-        stoneMat
-      )
-      gardenWall.position.set(0, 0.5, 20)
-      gardenWall.castShadow = true
-      gardenWall.receiveShadow = true
-      proceduralEnv.add(gardenWall)
-
-      // Add villa and environment to procedural group
-      proceduralEnv.add(villa)
-
-      scene.add(proceduralEnv)
-
-      // Camera animation targets for each section (defaults for procedural villa)
-      // These will be dynamically updated when GLB model loads
+      // ─── Camera Data ───
+      // Defaults for before model loads; will be recalculated after GLB loads
       const cameraData: Record<string, { pos: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }> = {
-        section1: { pos: { x: 22, y: 10, z: 28 }, target: { x: 0, y: 4, z: 0 } },
-        section2: { pos: { x: 5, y: 5, z: 10 }, target: { x: 0, y: 4, z: -4 } },
-        section3: { pos: { x: -3, y: 5, z: -2 }, target: { x: -2, y: 4, z: -6 } },
-        section4: { pos: { x: 35, y: 22, z: 40 }, target: { x: 0, y: 5, z: 0 } },
+        section1: { pos: { x: 8, y: 3, z: 8 }, target: { x: 0, y: 2, z: 0 } },
+        section2: { pos: { x: 3, y: 2.2, z: 2 }, target: { x: -1, y: 1.8, z: -2 } },
+        section3: { pos: { x: -2, y: 2.5, z: 1 }, target: { x: -4, y: 2.2, z: -1 } },
+        section4: { pos: { x: 6, y: 6, z: 6 }, target: { x: 0, y: 2, z: 0 } },
       }
 
-      const currentTarget = new THREE.Vector3(0, 4, 0)
+      const currentTarget = new THREE.Vector3(0, 2, 0)
 
-      // Load GLB model from uploaded file (fallback: use procedural scene)
-      let glbLoaded = false
-      let sceneReady = false
-
-      // Adjust camera for GLB interior model
+      // ─── Dynamic camera calculation based on loaded model ───
       const updateCameraForModel = (model: THREE.Group) => {
         const box = new THREE.Box3().setFromObject(model)
         const center = box.getCenter(new THREE.Vector3())
         const size = box.getSize(new THREE.Vector3())
-        const maxDim = Math.max(size.x, size.y, size.z)
 
-        // Scale model to fit a ~20 unit scene
-        const scale = 20 / maxDim
+        // Scale model to fit ~15 unit scene (good for interior walkthrough)
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const scale = 15 / maxDim
         model.scale.setScalar(scale)
 
-        // Recalculate bounds after scaling
+        // Recalculate after scaling
         const scaledBox = new THREE.Box3().setFromObject(model)
         const scaledCenter = scaledBox.getCenter(new THREE.Vector3())
         const scaledSize = scaledBox.getSize(new THREE.Vector3())
 
-        // Center the model horizontally, place bottom at ground level
+        // Center horizontally, bottom at ground
         model.position.x -= scaledCenter.x
         model.position.z -= scaledCenter.z
         model.position.y -= scaledBox.min.y
 
-        // Recalculate after position adjustment
+        // Final bounds
         const finalBox = new THREE.Box3().setFromObject(model)
         const finalCenter = finalBox.getCenter(new THREE.Vector3())
 
-        // Dynamic camera positions based on model dimensions
-        // Section 1 (Hero): Front diagonal view - dramatic entrance angle
+        const cx = finalCenter.x
+        const cy = finalCenter.y
+        const cz = finalCenter.z
+        const sx = scaledSize.x
+        const sy = scaledSize.y
+        const sz = scaledSize.z
+
+        // Section 1 (Hero): Wide-angle interior perspective - main living area
         cameraData.section1.pos = {
-          x: finalCenter.x + scaledSize.x * 0.8,
-          y: scaledSize.y * 0.6,
-          z: finalCenter.z + scaledSize.z * 0.9
+          x: cx + sx * 0.4,
+          y: cy + sy * 0.15,
+          z: cz + sz * 0.45
         }
-        cameraData.section1.target = { x: finalCenter.x, y: finalCenter.y * 0.8, z: finalCenter.z }
+        cameraData.section1.target = {
+          x: cx - sx * 0.1,
+          y: cy - sy * 0.05,
+          z: cz - sz * 0.1
+        }
 
-        // Section 2 (Workflow): Closer, lower angle - moving in
+        // Section 2 (Workflow): Moving forward into lounge/sitting area
         cameraData.section2.pos = {
-          x: finalCenter.x + scaledSize.x * 0.2,
-          y: scaledSize.y * 0.35,
-          z: finalCenter.z + scaledSize.z * 0.4
+          x: cx + sx * 0.05,
+          y: cy - sy * 0.05,
+          z: cz + sz * 0.15
         }
-        cameraData.section2.target = { x: finalCenter.x, y: finalCenter.y * 0.6, z: finalCenter.z - scaledSize.z * 0.1 }
+        cameraData.section2.target = {
+          x: cx - sx * 0.2,
+          y: cy - sy * 0.1,
+          z: cz - sz * 0.2
+        }
 
-        // Section 3 (Solution): Side angle - architectural detail
+        // Section 3 (Solution): Tight macro pan along wall/window surface
         cameraData.section3.pos = {
-          x: finalCenter.x - scaledSize.x * 0.6,
-          y: scaledSize.y * 0.45,
-          z: finalCenter.z - scaledSize.z * 0.1
+          x: cx - sx * 0.25,
+          y: cy + sy * 0.05,
+          z: cz - sz * 0.05
         }
-        cameraData.section3.target = { x: finalCenter.x, y: finalCenter.y * 0.7, z: finalCenter.z }
+        cameraData.section3.target = {
+          x: cx - sx * 0.35,
+          y: cy - sy * 0.05,
+          z: cz - sz * 0.15
+        }
 
-        // Section 4 (Pricing): Wide aerial - dramatic reveal
+        // Section 4 (Pricing): Elevated wide shot from corner
         cameraData.section4.pos = {
-          x: finalCenter.x + scaledSize.x * 1.5,
-          y: scaledSize.y * 1.3,
-          z: finalCenter.z + scaledSize.z * 1.6
+          x: cx + sx * 0.35,
+          y: cy + sy * 0.6,
+          z: cz + sz * 0.35
         }
-        cameraData.section4.target = { x: finalCenter.x, y: finalCenter.y * 0.9, z: finalCenter.z }
+        cameraData.section4.target = {
+          x: cx,
+          y: cy - sy * 0.1,
+          z: cz
+        }
 
-        // Set initial camera position
+        // Set initial camera
         camera.position.set(
           cameraData.section1.pos.x,
           cameraData.section1.pos.y,
@@ -605,18 +178,26 @@ export default function Home() {
           cameraData.section1.target.y,
           cameraData.section1.target.z
         )
+
+        // Update sun position relative to model
+        sunLight.position.set(cx + sx * 0.3, cy + sy * 1.2, cz + sz * 0.2)
+        sunLight.target.position.set(cx, cy, cz)
+        sunLight.target.updateMatrixWorld()
+
+        // Update rim light
+        rimLight.position.set(cx, cy + sy * 0.5, cz)
       }
+
+      // ─── Load GLB Model ───
+      let glbLoaded = false
+      let sceneReady = false
 
       const loader = new GLTFLoader()
       loader.load(
-        '/assets/interior.glb',
+        '/assets/ap.glb',
         (gltf) => {
           if (cleanup) return
           glbLoaded = true
-          // Remove entire procedural environment
-          scene.remove(proceduralEnv)
-          scene.remove(terrain)
-          scene.remove(ocean)
 
           const model = gltf.scene
           model.traverse((child) => {
@@ -626,27 +207,15 @@ export default function Home() {
             }
           })
 
-          // Scale and position the model properly
           updateCameraForModel(model)
           scene.add(model)
-
-          // Add a ground plane under the model
-          const groundPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(100, 100),
-            new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.95 })
-          )
-          groundPlane.rotation.x = -Math.PI / 2
-          groundPlane.position.y = -0.01
-          groundPlane.receiveShadow = true
-          scene.add(groundPlane)
 
           sceneReady = true
           setLoadProgress(100)
           setTimeout(() => setLoading(false), 800)
 
-          // Rebuild scroll animations with updated camera positions for the loaded model
+          // Rebuild scroll animations after model loads
           setTimeout(() => {
-            // Reset camera to the starting position for the GLB model
             camera.position.set(
               cameraData.section1.pos.x,
               cameraData.section1.pos.y,
@@ -658,7 +227,7 @@ export default function Home() {
               cameraData.section1.target.z
             )
             setupScrollAnimations()
-          }, 500)
+          }, 600)
         },
         (progress) => {
           if (progress.total > 0) {
@@ -666,8 +235,7 @@ export default function Home() {
             setLoadProgress(pct)
           }
         },
-        (error) => {
-          // GLB load failed - use procedural scene
+        () => {
           if (!glbLoaded && !cleanup) {
             sceneReady = true
             setLoadProgress(100)
@@ -676,25 +244,25 @@ export default function Home() {
         }
       )
 
-      // Fallback: show procedural scene after timeout (large GLB may take time)
+      // Fallback timeout for slow connections
       setTimeout(() => {
         if (!glbLoaded && !sceneReady && !cleanup) {
           sceneReady = true
           setLoadProgress(100)
           setTimeout(() => setLoading(false), 800)
         }
-      }, 8000)
+      }, 10000)
 
-      // GSAP ScrollTrigger setup function (reusable when GLB loads)
+      // ─── GSAP ScrollTrigger Setup ───
       const setupScrollAnimations = () => {
-        // Kill ALL existing ScrollTrigger instances and tweens on camera
+        // Kill existing ScrollTrigger instances
         ScrollTrigger.getAll().forEach(st => st.kill())
         gsap.killTweensOf(camera.position)
         gsap.killTweensOf(currentTarget)
 
         const sections = scrollContainerRef.current?.querySelectorAll('.arqai-section')
         if (sections && sections.length >= 4) {
-          // Section 1 -> 2 transition
+          // Section 1 → 2: Move deeper into apartment
           gsap.to(camera.position, {
             x: cameraData.section2.pos.x,
             y: cameraData.section2.pos.y,
@@ -718,7 +286,7 @@ export default function Home() {
             },
           })
 
-          // Section 2 -> 3 transition
+          // Section 2 → 3: Tight pan along wall/window detail
           gsap.to(camera.position, {
             x: cameraData.section3.pos.x,
             y: cameraData.section3.pos.y,
@@ -742,7 +310,7 @@ export default function Home() {
             },
           })
 
-          // Section 3 -> 4 transition
+          // Section 3 → 4: Elevated wide shot pull-back
           gsap.to(camera.position, {
             x: cameraData.section4.pos.x,
             y: cameraData.section4.pos.y,
@@ -770,10 +338,7 @@ export default function Home() {
         ScrollTrigger.refresh()
       }
 
-      // Initial setup with procedural villa camera positions
-      setupScrollAnimations()
-
-      // GSAP scroll-reveal animations for content cards
+      // ─── GSAP Scroll-Reveal for content cards ───
       const contentCards = scrollContainerRef.current?.querySelectorAll('.reveal-card')
       contentCards?.forEach((card) => {
         gsap.fromTo(card,
@@ -793,7 +358,7 @@ export default function Home() {
         )
       })
 
-      // Animation loop
+      // ─── Animation Loop ───
       const clock = new THREE.Clock()
       const animate = () => {
         if (cleanup) return
@@ -801,23 +366,19 @@ export default function Home() {
         const elapsed = clock.getElapsedTime()
 
         // Subtle camera breathing
-        camera.position.x += Math.sin(elapsed * 0.12) * 0.008
-        camera.position.y += Math.cos(elapsed * 0.15) * 0.004
+        camera.position.x += Math.sin(elapsed * 0.12) * 0.003
+        camera.position.y += Math.cos(elapsed * 0.15) * 0.002
 
         camera.lookAt(currentTarget)
 
-        // Animate pool water shimmer
-        poolWater.material = poolWaterMat
-        poolWater.position.y = 0.78 + Math.sin(elapsed * 1.5) * 0.012
-
-        // Animate ocean slight movement
-        ocean.position.y = -2.5 + Math.sin(elapsed * 0.5) * 0.05
+        // Subtle rim light pulse
+        rimLight.intensity = 0.3 + Math.sin(elapsed * 0.8) * 0.05
 
         renderer.render(scene, camera)
       }
       animate()
 
-      // Resize handler
+      // ─── Resize Handler ───
       const handleResize = () => {
         camera.aspect = window.innerWidth / window.innerHeight
         camera.updateProjectionMatrix()
@@ -825,14 +386,11 @@ export default function Home() {
       }
       window.addEventListener('resize', handleResize)
 
-      // Refresh ScrollTrigger after layout stabilizes
-      const refreshInterval = setInterval(() => {
-        ScrollTrigger.refresh()
-      }, 1000)
+      // Periodic ScrollTrigger refresh
+      const refreshInterval = setInterval(() => ScrollTrigger.refresh(), 2000)
+      setTimeout(() => clearInterval(refreshInterval), 8000)
 
-      setTimeout(() => clearInterval(refreshInterval), 5000)
-
-      // Store cleanup
+      // ─── Cleanup ───
       const destroy = () => {
         cleanup = true
         window.removeEventListener('resize', handleResize)
@@ -843,8 +401,7 @@ export default function Home() {
         scene.clear()
       }
 
-      // Attach cleanup to window for component unmount
-      ;(window as unknown as Record<string, () => void>).__arqaiCleanup = destroy
+      ;(window as unknown as Record<string, (() => void) | undefined>).__arqaiCleanup = destroy
     }
 
     initScene()
@@ -857,7 +414,7 @@ export default function Home() {
 
   return (
     <>
-      {/* Loading Screen */}
+      {/* ─── Loading Screen ─── */}
       <div
         className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-opacity duration-1000 ${loading ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         style={{ backgroundColor: '#030507' }}
@@ -879,20 +436,20 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Three.js Canvas (fixed background) */}
+      {/* ─── Three.js Canvas (fixed background) ─── */}
       <canvas
         ref={canvasRef}
         className="fixed inset-0 w-full h-full"
         style={{ zIndex: 0, pointerEvents: 'none' }}
       />
 
-      {/* Scrollable HTML Content Overlay */}
+      {/* ─── Scrollable HTML Content Overlay ─── */}
       <div
         ref={scrollContainerRef}
         className="relative"
         style={{ zIndex: 1, pointerEvents: 'none' }}
       >
-        {/* Navbar */}
+        {/* ─── Navbar ─── */}
         <nav
           className="fixed top-0 left-0 right-0 flex items-center justify-between px-6 md:px-12 py-5 backdrop-blur-sm bg-[#030507]/30"
           style={{ zIndex: 50, pointerEvents: 'none' }}
@@ -910,7 +467,7 @@ export default function Home() {
           </a>
         </nav>
 
-        {/* Section 1: Hero */}
+        {/* ─── Section 1: Hero ─── */}
         <section
           className="arqai-section min-h-screen flex items-center px-6 md:px-12 lg:px-20 pt-24 pb-12"
           style={{ pointerEvents: 'none' }}
@@ -953,7 +510,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Section 2: Workflow */}
+        {/* ─── Section 2: Workflow ─── */}
         <section
           className="arqai-section min-h-screen flex items-center justify-center px-6 md:px-12 py-24"
           style={{ pointerEvents: 'none' }}
@@ -1001,7 +558,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Section 3: Solution */}
+        {/* ─── Section 3: Solution ─── */}
         <section
           className="arqai-section min-h-screen flex items-center px-6 md:px-12 lg:px-20 py-24"
           style={{ pointerEvents: 'none' }}
@@ -1026,7 +583,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Section 4: Pricing */}
+        {/* ─── Section 4: Pricing ─── */}
         <section
           id="pricing"
           className="arqai-section min-h-screen flex items-center justify-center px-6 md:px-12 py-24"
@@ -1110,7 +667,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Footer */}
+        {/* ─── Footer ─── */}
         <footer
           className="py-16 px-6 text-center"
           style={{ pointerEvents: 'auto' }}
