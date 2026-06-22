@@ -391,10 +391,11 @@ export default function Home() {
         {/* ─────────────── SECTION 2: WORKFLOW ─────────────── */}
         <section className="arqai-section min-h-screen flex items-center justify-center px-6 md:px-12 py-24" style={{ pointerEvents: 'none' }}>
           <div className="max-w-5xl w-full text-center pointer-events-auto">
-            <div className="reveal-card">
+            {/* Blur box behind title so it never vanishes against bright or dark 3D areas */}
+            <div className="reveal-card inline-block backdrop-blur-xl border border-white/[0.10] rounded-2xl px-10 py-7 shadow-2xl shadow-black/20" style={{ backgroundColor: 'rgba(3, 5, 7, 0.55)' }}>
               <span className="text-[#00f5ff] text-[11px] tracking-[0.3em] font-medium uppercase">Processo</span>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-slate-900 mt-4">O Fluxo de Trabalho Real</h2>
-              <p className="text-slate-700 text-base md:text-lg font-light mt-4 max-w-2xl mx-auto">Domine as 3 etapas essenciais para revolucionar sua produção.</p>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-white mt-4">O Fluxo de Trabalho Real</h2>
+              <p className="text-white/60 text-base md:text-lg font-light mt-4 max-w-2xl mx-auto">Domine as 3 etapas essenciais para revolucionar sua produção.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-14">
               {[
@@ -431,10 +432,11 @@ export default function Home() {
         {/* ─────────────── SECTION 4: PRICING ─────────────── */}
         <section id="pricing" className="arqai-section min-h-screen flex items-center justify-center px-6 md:px-12 py-24" style={{ pointerEvents: 'none' }}>
           <div className="max-w-4xl w-full text-center pointer-events-auto">
-            <div className="reveal-card">
+            {/* Blur box behind title so it never vanishes against bright or dark 3D areas */}
+            <div className="reveal-card inline-block backdrop-blur-xl border border-white/[0.10] rounded-2xl px-10 py-7 shadow-2xl shadow-black/20" style={{ backgroundColor: 'rgba(3, 5, 7, 0.55)' }}>
               <span className="text-[#00f5ff] text-[11px] tracking-[0.3em] font-medium uppercase">Jornada</span>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-slate-900 mt-4">Escolha Sua Jornada</h2>
-              <p className="text-slate-700 text-base md:text-lg font-light mt-4 max-w-2xl mx-auto">Do aprendizado autônomo à consultoria especializada.</p>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-white mt-4">Escolha Sua Jornada</h2>
+              <p className="text-white/60 text-base md:text-lg font-light mt-4 max-w-2xl mx-auto">Do aprendizado autônomo à consultoria especializada.</p>
             </div>
             {/* Grid with equal-height cards via items-stretch (default) + flex-col inside */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-14 items-stretch">
