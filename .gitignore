@@ -56,3 +56,4 @@ server.log
 *.png
 screenshot-*
 upload/
+tool-results/
