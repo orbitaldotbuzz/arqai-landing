@@ -51,6 +51,8 @@ prompt
 
 server.log
 # Skills directory
-/skills/*.png
+/skills/
+# Screenshots
+*.png
 screenshot-*
 upload/
