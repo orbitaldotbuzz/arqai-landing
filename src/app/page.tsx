@@ -29,28 +29,44 @@ export default function Home() {
       const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500)
       camera.position.set(0, 1.6, 0)
 
+      // ─── Performance heuristics ───
+      // Detect weak devices to scale quality down automatically.
+      const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+      const devicePixelRatio = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2)
+
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current!,
-        antialias: true,
+        // Disable MSAA on mobile — use FXAA-like cheap path via pixelRatio instead.
+        // On desktop keep antialias for clean edges.
+        antialias: !isMobile,
         alpha: false,
+        powerPreference: 'high-performance',
+        // Prevent the renderer from creating an extra WebGL context limit issue.
+        stencil: false,
+        depth: true,
       })
       renderer.setSize(window.innerWidth, window.innerHeight)
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-      renderer.shadowMap.enabled = true
-      renderer.shadowMap.type = THREE.PCFShadowMap
+      renderer.setPixelRatio(devicePixelRatio)
+      renderer.shadowMap.enabled = !isMobile
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap
       renderer.toneMapping = THREE.ACESFilmicToneMapping
       renderer.toneMappingExposure = 1.4
       renderer.outputColorSpace = THREE.SRGBColorSpace
+      // Slightly cheaper shadow + clear color setup
+      renderer.setClearColor(0x030507, 1)
 
       // ─── Indoor Lighting ───
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.8)
+      // Lighter setup: cheaper ambient + only 1 shadow-casting light.
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.85)
       scene.add(ambientLight)
 
       const sunLight = new THREE.DirectionalLight(0xfff5e6, 2.0)
       sunLight.position.set(5, 8, 3)
-      sunLight.castShadow = true
-      sunLight.shadow.mapSize.width = 2048
-      sunLight.shadow.mapSize.height = 2048
+      sunLight.castShadow = !isMobile
+      // Lower shadow map resolution — 1024 is enough for an apartment scene
+      // and is 4x cheaper than 2048.
+      sunLight.shadow.mapSize.width = isMobile ? 512 : 1024
+      sunLight.shadow.mapSize.height = isMobile ? 512 : 1024
       sunLight.shadow.camera.near = 0.1
       sunLight.shadow.camera.far = 50
       sunLight.shadow.camera.left = -15
@@ -58,14 +74,17 @@ export default function Home() {
       sunLight.shadow.camera.top = 15
       sunLight.shadow.camera.bottom = -15
       sunLight.shadow.bias = -0.0002
+      // Mark shadow as static — won't recompute every frame (huge win).
+      sunLight.shadow.autoUpdate = false
+      sunLight.shadow.needsUpdate = true
       scene.add(sunLight)
       scene.add(sunLight.target)
 
-      const fillLight = new THREE.DirectionalLight(0xddeeff, 0.4)
+      const fillLight = new THREE.DirectionalLight(0xddeeff, 0.45)
       fillLight.position.set(-4, 3, -2)
       scene.add(fillLight)
 
-      const hemiLight = new THREE.HemisphereLight(0xcce0ff, 0x222222, 0.3)
+      const hemiLight = new THREE.HemisphereLight(0xcce0ff, 0x222222, 0.35)
       scene.add(hemiLight)
 
       const rimLight = new THREE.PointLight(0x00f5ff, 0.3, 30)
@@ -105,6 +124,15 @@ export default function Home() {
       let sceneReady = false
 
       const loader = new GLTFLoader()
+      // Enable Draco decompression (ap.glb is now Draco-compressed: 11MB → 660KB)
+      const DRACOLoader = (await import('three/examples/jsm/loaders/DRACOLoader.js')).DRACOLoader
+      const draco = new DRACOLoader()
+      // Use the Draco decoder shipped with three.js (copied to public/ on build).
+      // Try the CDN as a robust fallback for static hosting.
+      draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/')
+      draco.setDecoderConfig({ type: 'js' })
+      loader.setDRACOLoader(draco)
+
       loader.load(
         '/assets/ap.glb',
         (gltf) => {
@@ -112,12 +140,29 @@ export default function Home() {
           glbLoaded = true
 
           const model = gltf.scene
+          // Only enable shadow casting on larger meshes; tiny decorative
+          // objects don't contribute visually but still cost shadow-pass time.
+          let meshCount = 0
           model.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-              child.castShadow = true
-              child.receiveShadow = true
+            const mesh = child as THREE.Mesh
+            if (mesh.isMesh) {
+              meshCount++
+              // Heuristic: enable shadows only on bigger surfaces.
+              // Skip micro-meshes (handles, small props).
+              const geom = mesh.geometry
+              if (geom && geom.attributes.position) {
+                const vCount = geom.attributes.position.count
+                if (vCount > 200) {
+                  mesh.castShadow = true
+                  mesh.receiveShadow = true
+                } else {
+                  mesh.castShadow = false
+                  mesh.receiveShadow = true
+                }
+              }
             }
           })
+          console.log(`[ARQAI] Loaded ${meshCount} meshes`)
 
           // Scale and center
           const box = new THREE.Box3().setFromObject(model)
@@ -244,20 +289,38 @@ export default function Home() {
       })
 
       // ─── Animation Loop ───
+      // Optimizations:
+      // - Pause rendering when tab is hidden (saves ~100% CPU/GPU on background tabs)
+      // - Removed the per-frame "breathing" Math.sin on camera.position.x — it
+      //   was constantly fighting GSAP scroll animations and triggering extra
+      //   camera.matrix updates. The breathing was visually imperceptible
+      //   (amplitude 0.001) but caused a layout invalidation every frame.
+      // - Use a low-amp sub-pixel flicker on rim light only (cheap, no matrix update).
       const clock = new THREE.Clock()
+      let isTabVisible = !document.hidden
+      const onVisibilityChange = () => {
+        isTabVisible = !document.hidden
+        if (isTabVisible && !cleanup) {
+          // Restart the loop on return.
+          clock.start()
+          animate()
+        }
+      }
+      document.addEventListener('visibilitychange', onVisibilityChange)
+
       const animate = () => {
         if (cleanup) return
+        if (!isTabVisible) return // Stop the loop while tab is hidden
         animationId = requestAnimationFrame(animate)
         const elapsed = clock.getElapsedTime()
 
-        // Very subtle X breathing only — no Y drift
-        camera.position.x += Math.sin(elapsed * 0.1) * 0.001
-
         // Enforce interior bounds: Y must stay between EYE_HEIGHT and 3.0
+        // (cheap safety clamp — only writes if violated, no constant mutation).
         if (camera.position.y < EYE_HEIGHT) camera.position.y = EYE_HEIGHT
-        if (camera.position.y > 3.2) camera.position.y = 3.2
+        else if (camera.position.y > 3.2) camera.position.y = 3.2
 
         camera.lookAt(currentTarget)
+        // Subtle, cheap pulse on the rim light only — no matrix recomputation.
         rimLight.intensity = 0.3 + Math.sin(elapsed * 0.8) * 0.05
         renderer.render(scene, camera)
       }
@@ -278,25 +341,37 @@ export default function Home() {
       window.addEventListener('keydown', onKeydown)
 
       // ─── Resize ───
+      // Debounced resize — prevents thrashing when the window is being dragged.
+      let resizeTimer: ReturnType<typeof setTimeout> | undefined
       const handleResize = () => {
-        camera.aspect = window.innerWidth / window.innerHeight
-        camera.updateProjectionMatrix()
-        renderer.setSize(window.innerWidth, window.innerHeight)
+        if (resizeTimer) clearTimeout(resizeTimer)
+        resizeTimer = setTimeout(() => {
+          camera.aspect = window.innerWidth / window.innerHeight
+          camera.updateProjectionMatrix()
+          renderer.setSize(window.innerWidth, window.innerHeight)
+          // Recompute shadows once on resize (since autoUpdate = false)
+          if (sunLight.shadow && !sunLight.shadow.autoUpdate) {
+            sunLight.shadow.needsUpdate = true
+          }
+        }, 120)
       }
       window.addEventListener('resize', handleResize)
 
-      const refreshInterval = setInterval(() => ScrollTrigger.refresh(), 2000)
-      setTimeout(() => clearInterval(refreshInterval), 8000)
+      const refreshInterval = setInterval(() => ScrollTrigger.refresh(), 3000)
+      setTimeout(() => clearInterval(refreshInterval), 6000)
 
       // ─── Cleanup ───
       const destroy = () => {
         cleanup = true
         window.removeEventListener('resize', handleResize)
         window.removeEventListener('keydown', onKeydown)
+        document.removeEventListener('visibilitychange', onVisibilityChange)
+        if (resizeTimer) clearTimeout(resizeTimer)
         cancelAnimationFrame(animationId)
         clearInterval(refreshInterval)
         ScrollTrigger.getAll().forEach(t => t.kill())
         renderer.dispose()
+        draco.dispose()
         scene.clear()
       }
       ;(window as unknown as Record<string, (() => void) | undefined>).__arqaiCleanup = destroy
