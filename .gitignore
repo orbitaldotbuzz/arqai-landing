@@ -57,3 +57,9 @@ server.log
 screenshot-*
 upload/
 tool-results/
+
+# dados locais e backups (nao versionar)
+.env
+.env*.local
+db/
+backups/
