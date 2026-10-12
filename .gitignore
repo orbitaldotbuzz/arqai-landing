@@ -63,3 +63,7 @@ tool-results/
 .env*.local
 db/
 backups/
+
+# artefatos internos de sandbox (nao versionar)
+worklog.md
+.zscripts/
